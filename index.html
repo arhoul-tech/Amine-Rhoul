@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examen Arbitre Départemental</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.container {
+    background: white;
+    width: 100%;
+    max-width: 800px;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+
+h1 { 
+    text-align: center;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+}
+
+#progress {
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #667eea;
+    text-align: center;
+}
+
+.option {
+    padding: 12px;
+    margin: 8px 0;
+    background: #f4f4f4;
+    border-radius: 8px;
+    cursor: pointer;
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.option:hover { 
+    background: #e8e8e8;
+    transform: translateX(5px);
+}
+
+.option.disabled {
+    cursor: not-allowed;
+}
+
+.correct { 
+    background: #c8f7c5 !important;
+    border-left-color: #2ecc71 !important;
+}
+
+.wrong { 
+    background: #f7c5c5 !important;
+    border-left-color: #e74c3c !important;
+}
+
+.feedback {
+    margin-top: 12px;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 6px;
+    font-style: italic;
+    color: #555;
+    border-left: 4px solid #f39c12;
+}
+
+button {
+    margin-top: 20px;
+    padding: 12px 30px;
+    border: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#result {
+    font-size: 24px;
+    margin-top: 30px;
+    text-align: center;
+    color: #333;
+}
+
+.score-display {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 10px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.score-number {
+    font-size: 48px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.score-message {
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.restart-btn {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+    margin-top: 15px;
+}
+
+.restart-btn:hover {
+    background: #f9f9f9;
+}
+
+#timer {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #e74c3c;
+    background: #fff3cd;
+    padding: 10px 15px;
+    border-radius: 8px;
+}
+
+.timer-warning {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+</style>
+</head>
+<body>
+<div id="timer"></div>
+<div class="container">
+<h1>⚖️ Examen Arbitre Départemental</h1>
+<p class="subtitle">Quiz d'entraînement - 20 questions</p>
+<div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+</div>
+<div id="progress"></div>
+<div id="quiz"></div>
+<button id="nextBtn" onclick="nextQuestion()" disabled>Question suivante</button>
+<div id="result"></div>
+</div>
+<script>
+let questions = [];
+let selectedQuestions = [];
+let current = 0;
+let score = 0;
+let timeLeft = 600;
+let timerInterval;
+let answered = false;
+fetch("questions.json")
+.then(res => res.json())
+.then(data => {
+    questions = data;
+    selectedQuestions = shuffle(questions).slice(0, 20);
+    startTimer();
+    showQuestion();
+});
+function shuffle(array) {
+    return array.sort(() => 0.5 - Math.random());
+}
+function startTimer() {
+    updateTimer();
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            endQuiz();
+        }
+    }, 1000);
+}
+function updateTimer() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const display = `⏱️ ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    const timerEl = document.getElementById("timer");
+    timerEl.innerText = display;
+    if (timeLeft <= 60) {
+        timerEl.classList.add("timer-warning");
+    }
+}
+function showQuestion() {
+    const quiz = document.getElementById("quiz");
+    quiz.innerHTML = "";
+    answered = false;
+    document.getElementById("nextBtn").disabled = true;
+    const q = selectedQuestions[current];
+    const progressPercentage = ((current + 1) / 20) * 100;
+    document.getElementById("progressFill").style.width = progressPercentage + "%";
+    document.getElementById("progress").innerText =
+        `Question ${current+1} / 20`;
+    const title = document.createElement("h3");
+    title.innerText = q.question;
+    quiz.appendChild(title);
+    const shuffledOptions = shuffle([...q.options]);
+    shuffledOptions.forEach(option => {
+        const div = document.createElement("div");
+        div.className = "option";
+        div.innerText = option;
+        div.onclick = () => selectOption(div, option, q);
+        quiz.appendChild(div);
+    });
+}
+function selectOption(element, value, q) {
+    if (answered) return;
+    answered = true;
+    const options = document.querySelectorAll(".option");
+    options.forEach(o => o.classList.add("disabled"));
+    if (value === q.answer) {
+        element.classList.add("correct");
+        score++;
+    } else {
+        element.classList.add("wrong");
+        // Afficher la bonne réponse
+        options.forEach(o => {
+            if (o.innerText === q.answer) {
+                o.classList.add("correct");
+            }
+        });
+    }
+    if (q.feedback) {
+        const fb = document.createElement("div");
+        fb.className = "feedback";
+        fb.innerHTML = "📌 " + q.feedback;
+        document.getElementById("quiz").appendChild(fb);
+    }
+    document.getElementById("nextBtn").disabled = false;
+}
+function nextQuestion() {
+    current++;
+    if (current < 20) {
+        showQuestion();
+    } else {
+        endQuiz();
+    }
+}
+function endQuiz() {
+    clearInterval(timerInterval);
+    document.getElementById("quiz").innerHTML = "";
+    document.getElementById("nextBtn").style.display = "none";
+    const percentage = Math.round((score / 20) * 100);
+    let message = "";
+    let emoji = "";
+    if (percentage >= 80) {
+        message = "🎉 Excellent ! Vous êtes prêt !";
+        emoji = "🏆";
+    } else if (percentage >= 60) {
+        message = "👍 Bien ! Un peu plus de révisions...";
+        emoji = "📚";
+    } else {
+        message = "💪 À revoir ! Continuez vos efforts !";
+        emoji = "🎯";
+    }
+    document.getElementById("result").innerHTML = `
+        <div class="score-display">
+            <div class="score-message">${message}</div>
+            <div class="score-number">${score} / 20</div>
+            <div>${percentage}%</div>
+        </div>
+        <button class="restart-btn" onclick="location.reload()">🔄 Recommencer</button>
+    `;
+}
+</script>
+</body>
+</html>
